@@ -1,0 +1,86 @@
+{% extends "rebac_admin/base.html" %}
+
+{% block title %}{{ config.title }}{% endblock %}
+
+{% block content %}
+  <h1>{{ config.title }}</h1>
+
+  <div class="actions">
+    {% if create_allowed %}
+      <a href="{{ request.url_for('admin_resource_create_page', table_key=config.table_key) }}">Create object</a>
+    {% endif %}
+
+    {% if config.table_key == 'suspicious_alert' and user.is_superuser %}
+      <form method="post" action="{{ request.url_for('admin_suspicious_alerts_run') }}" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit">Run detection</button>
+      </form>
+    {% endif %}
+  </div>
+
+  {% if config.table_key == 'suspicious_alert' and suspicious_activity_config %}
+    <div class="card compact-card">
+      <p>
+        <strong>Suspicious activity detection:</strong>
+        {% if suspicious_activity_config.enabled %}
+          enabled
+        {% else %}
+          disabled
+        {% endif %}
+      </p>
+      <p class="muted">
+        Window: {{ suspicious_activity_config.window_minutes }} min;
+        rules: {{ 'on' if suspicious_activity_config.rules_enabled else 'off' }};
+        PyOD detector: {{ 'on' if suspicious_activity_config.pyod_enabled else 'off' }};
+        PyOD package: {{ 'installed' if pyod_available else 'missing' }}.
+      </p>
+      {% if not suspicious_activity_config.enabled %}
+        <p class="muted">
+          Configure <code>SuspiciousActivityConfig(enabled=True)</code> in your application to make the run button create alerts.
+        </p>
+      {% endif %}
+      {% if suspicious_activity_config.pyod_enabled and not pyod_available %}
+        <p class="muted">
+          PyOD detector is enabled, but the package is not installed. Install the project with <code>[anomaly]</code> extra to enable ECOD outlier detection.
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if rows %}
+    <div class="table-responsive">
+      <table>
+      <thead>
+        <tr>
+          {% for field_name, _ in rows[0].cells %}
+            <th>{{ field_name }}</th>
+          {% endfor %}
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            {% for field_name, value in row.cells %}
+              <td>
+                {% if value.url %}
+                  <a href="{{ value.url }}">{{ value.label }}</a>
+                {% else %}
+                  {{ value.label }}
+                {% endif %}
+              </td>
+            {% endfor %}
+            <td>
+              <a href="{{ request.url_for('admin_resource_detail_page', table_key=config.table_key, object_id=row.pk) }}">
+                Open
+              </a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No objects found.</p>
+  {% endif %}
+{% endblock %}

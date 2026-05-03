@@ -1,0 +1,77 @@
+{% extends "rebac_admin/base.html" %}
+
+{% block title %}Edit user{% endblock %}
+
+{% block content %}
+  <h1>Edit user</h1>
+
+  <form method="post" class="admin-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <label class="form-row is-required">
+      <span class="field-label">Email <span class="required-marker">required</span></span>
+      <input type="email" name="email" value="{{ user_obj.email }}" required>
+    </label>
+
+    <label class="form-row is-required">
+      <span class="field-label">Username <span class="required-marker">required</span></span>
+      <input type="text" name="username" value="{{ user_obj.username }}" required>
+    </label>
+
+    <label class="form-row">
+      <span class="field-label">First name</span>
+      <input type="text" name="first_name" value="{{ user_obj.first_name or '' }}">
+    </label>
+
+    <label class="form-row">
+      <span class="field-label">Last name</span>
+      <input type="text" name="last_name" value="{{ user_obj.last_name or '' }}">
+    </label>
+
+    <label class="form-row">
+      <span class="field-label">Supervisor</span>
+      <div class="fk-widget" data-fk-widget>
+        <div class="fk-field">
+          <span class="fk-subfield-label">Choose from list</span>
+          <select name="supervisor_id_select" data-fk-select onchange="this.closest('[data-fk-widget]').querySelector('[data-fk-manual]').value = this.value || '';">
+            <option value="" {% if not user_obj.supervisor_id %}selected{% endif %}>---------</option>
+            {% for supervisor in supervisor_choices %}
+              <option value="{{ supervisor.id }}" {% if user_obj.supervisor_id and supervisor.id == user_obj.supervisor_id %}selected{% endif %}>{{ supervisor }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fk-field">
+          <span class="fk-subfield-label">Or enter ID manually</span>
+          <input type="text" name="supervisor_id" value="{{ user_obj.supervisor_id if user_obj.supervisor_id else '' }}" placeholder="User ID" data-fk-manual>
+        </div>
+        <p class="help-text">Choose from the list, or enter a matching existing object ID.</p>
+      </div>
+    </label>
+
+    <label class="form-row checkbox-row">
+      <input type="checkbox" name="is_active" {% if user_obj.is_active %}checked{% endif %}>
+      <span>Is active</span>
+    </label>
+
+    <label class="form-row checkbox-row">
+      <input type="checkbox" name="is_verified" {% if user_obj.is_verified %}checked{% endif %}>
+      <span>Is verified</span>
+    </label>
+
+    <label class="form-row checkbox-row">
+      <input type="checkbox" name="is_staff" {% if user_obj.is_staff %}checked{% endif %}>
+      <span>Is staff</span>
+    </label>
+
+    {% if actor.is_superuser %}
+      <label class="form-row checkbox-row">
+        <input type="checkbox" name="is_superuser" {% if user_obj.is_superuser %}checked{% endif %}>
+        <span>Is superuser</span>
+      </label>
+    {% endif %}
+
+    <div class="form-actions">
+      <button type="submit">Save</button>
+    </div>
+  </form>
+{% endblock %}

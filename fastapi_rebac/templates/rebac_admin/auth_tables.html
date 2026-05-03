@@ -1,0 +1,41 @@
+{% extends "rebac_admin/base.html" %}
+
+{% block title %}Auth Tables{% endblock %}
+
+{% block content %}
+  <h1>Auth Tables</h1>
+
+  {% if sync_allowed %}
+    <form method="post" action="{{ request.url_for('admin_auth_tables_sync') }}" class="section">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit">Sync from registered admin models</button>
+    </form>
+  {% endif %}
+
+  {% if auth_tables %}
+    <div class="table-responsive">
+      <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Key</th>
+          <th>Title</th>
+          <th>Service</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for table in auth_tables %}
+          <tr>
+            <td><code>{{ table.id }}</code></td>
+            <td><code>{{ table.key }}</code></td>
+            <td>{{ table.title }}</td>
+            <td>{{ table.is_service }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No registered auth tables.</p>
+  {% endif %}
+{% endblock %}

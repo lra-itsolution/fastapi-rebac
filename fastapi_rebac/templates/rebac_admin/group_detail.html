@@ -1,0 +1,191 @@
+{% extends "rebac_admin/base.html" %}
+
+{% block title %}Group{% endblock %}
+
+{% block content %}
+  <h1>Group</h1>
+
+  {% if group_obj %}
+    <div class="actions">
+      {% if can_update_group %}
+        <a href="{{ request.url_for('admin_group_edit_page', group_id=group_obj.id) }}">Edit</a>
+      {% endif %}
+      {% if can_delete_group %}
+        <form class="inline" method="post" action="{{ request.url_for('admin_group_delete_submit', group_id=group_obj.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="danger" data-confirm="Delete this group?">Delete</button>
+        </form>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <p><strong>ID:</strong> <code>{{ group_obj.id }}</code></p>
+      <p><strong>Name:</strong> {{ group_obj.name }}</p>
+      <p><strong>Created by:</strong>
+        {% if created_by_display.url %}
+          <a href="{{ created_by_display.url }}">{{ created_by_display.label }}</a>
+        {% else %}
+          {{ created_by_display.label }}
+        {% endif %}
+      </p>
+      <p><strong>Created at:</strong> {{ created_at_display }}</p>
+      <p><strong>Updated at:</strong> {{ updated_at_display }}</p>
+      <p><strong>share_members_visibility:</strong> {{ group_obj.share_members_visibility }}</p>
+      <p><strong>share_creator_visibility:</strong> {{ group_obj.share_creator_visibility }}</p>
+    </div>
+
+    <div class="section">
+      <h2>Group members</h2>
+      {% if not can_read_membership %}
+        <p class="muted">You do not have permission to view group memberships.</p>
+      {% else %}
+        {% if can_create_membership %}
+          <form method="post" action="{{ request.url_for('admin_group_add_member', group_id=group_obj.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label class="form-row is-required">
+              <span class="field-label">Add user <span class="required-marker">required</span></span>
+              <div class="fk-widget is-required" data-fk-widget>
+                <div class="fk-field">
+                  <span class="fk-subfield-label">Choose from list</span>
+                  <select name="user_id_select" data-fk-select onchange="this.closest('[data-fk-widget]').querySelector('[data-fk-manual]').value = this.value || '';">
+                    <option value="">---------</option>
+                    {% for user_choice in user_choices %}
+                      <option value="{{ user_choice.id }}">{{ user_choice }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="fk-field">
+                  <span class="fk-subfield-label">Or enter ID manually</span>
+                  <input type="text" name="user_id" placeholder="User ID" required data-fk-manual>
+                </div>
+              </div>
+            </label>
+            <button type="submit">Add</button>
+          </form>
+        {% endif %}
+
+        {% if member_rows %}
+          <div class="table-responsive">
+            <table>
+            <thead>
+              <tr>
+                <th>Membership ID</th>
+                <th>User</th>
+                {% if can_delete_membership %}<th></th>{% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for membership in member_rows %}
+                <tr>
+                  <td><code>{{ membership.id }}</code></td>
+                  <td>
+                    {% if membership.user.url %}
+                      <a href="{{ membership.user.url }}">{{ membership.user.label }}</a>
+                    {% else %}
+                      {{ membership.user.label }}
+                    {% endif %}
+                  </td>
+                  {% if can_delete_membership %}
+                    <td>
+                      <form class="inline" method="post" action="{{ request.url_for('admin_group_remove_member', group_id=group_obj.id, membership_id=membership.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="danger" data-confirm="Remove this item?">Remove</button>
+                      </form>
+                    </td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="muted">This group has no members.</p>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <div class="section">
+      <h2>Group permissions</h2>
+      {% if not can_read_permission %}
+        <p class="muted">You do not have permission to view group permissions.</p>
+      {% else %}
+        {% if can_create_permission %}
+          <form method="post" action="{{ request.url_for('admin_group_add_permission', group_id=group_obj.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label class="form-row is-required">
+              <span class="field-label">Table <span class="required-marker">required</span></span>
+              <div class="fk-widget is-required" data-fk-widget>
+                <div class="fk-field">
+                  <span class="fk-subfield-label">Choose from list</span>
+                  <select name="table_id_select" data-fk-select onchange="this.closest('[data-fk-widget]').querySelector('[data-fk-manual]').value = this.value || '';">
+                    <option value="">---------</option>
+                    {% for table in auth_tables %}
+                      <option value="{{ table.id }}">{{ table.key }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="fk-field">
+                  <span class="fk-subfield-label">Or enter ID manually</span>
+                  <input type="text" name="table_id" placeholder="Auth table ID" required data-fk-manual>
+                </div>
+              </div>
+            </label>
+
+            <label class="form-row is-required">
+              <span class="field-label">Action <span class="required-marker">required</span></span>
+              <select name="action" required>
+                {% for action in actions %}
+                  <option value="{{ action.name }}">{{ action.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <button type="submit">Grant permission</button>
+          </form>
+        {% endif %}
+
+        {% if permission_rows %}
+          <div class="table-responsive">
+            <table>
+            <thead>
+              <tr>
+                <th>Permission ID</th>
+                <th>Table</th>
+                <th>Action</th>
+                {% if can_delete_permission %}<th></th>{% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for permission in permission_rows %}
+                <tr>
+                  <td><code>{{ permission.id }}</code></td>
+                  <td>
+                    {% if permission.table.url %}
+                      <a href="{{ permission.table.url }}">{{ permission.table.label }}</a>
+                    {% else %}
+                      {{ permission.table.label }}
+                    {% endif %}
+                  </td>
+                  <td>{{ permission.action.value }}</td>
+                  {% if can_delete_permission %}
+                    <td>
+                      <form class="inline" method="post" action="{{ request.url_for('admin_group_remove_permission', group_id=group_obj.id, permission_id=permission.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="danger" data-confirm="Remove this item?">Remove</button>
+                      </form>
+                    </td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="muted">This group has no permissions.</p>
+        {% endif %}
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="muted">Group not found.</p>
+  {% endif %}
+{% endblock %}

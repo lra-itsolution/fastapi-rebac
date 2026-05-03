@@ -1,0 +1,30 @@
+{% extends "rebac_admin/base.html" %}
+
+{% block title %}{% if mode == "create" %}Create group{% else %}Edit group{% endif %}{% endblock %}
+
+{% block content %}
+  <h1>{% if mode == "create" %}Create group{% else %}Edit group{% endif %}</h1>
+
+  <form method="post" class="admin-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <label class="form-row is-required">
+      <span class="field-label">Name <span class="required-marker">required</span></span>
+      <input type="text" name="name" value="{{ group_obj.name if group_obj else '' }}" required>
+    </label>
+
+    <label class="form-row checkbox-row">
+      <input type="checkbox" name="share_members_visibility" {% if group_obj and group_obj.share_members_visibility %}checked{% endif %}>
+      <span>Share members visibility</span>
+    </label>
+
+    <label class="form-row checkbox-row">
+      <input type="checkbox" name="share_creator_visibility" {% if group_obj and group_obj.share_creator_visibility %}checked{% endif %}>
+      <span>Share creator visibility</span>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit">{% if mode == "create" %}Create{% else %}Save{% endif %}</button>
+    </div>
+  </form>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "rebac_admin/base.html" %}
+
+{% block title %}Users{% endblock %}
+
+{% block content %}
+  <h1>Users</h1>
+
+  <div class="actions">
+    {% if create_allowed %}
+      <a href="{{ request.url_for('admin_user_create_page') }}">Create user</a>
+    {% endif %}
+  </div>
+
+  {% if user_rows %}
+    <div class="table-responsive">
+      <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Email</th>
+          <th>Username</th>
+          <th>Created by</th>
+          <th>Supervisor</th>
+          <th>Created at</th>
+          <th>Updated at</th>
+          <th>Active</th>
+          <th>Staff</th>
+          <th>Superuser</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in user_rows %}
+          {% set user_obj = row.obj %}
+          <tr>
+            <td><code>{{ user_obj.id }}</code></td>
+            <td>{{ user_obj.email }}</td>
+            <td>{{ user_obj.username }}</td>
+            <td>
+              {% if row.created_by and row.created_by.url %}
+                <a href="{{ row.created_by.url }}">{{ row.created_by.label }}</a>
+              {% elif row.created_by %}
+                {{ row.created_by.label }}
+              {% else %}
+                <span class="muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.supervisor and row.supervisor.url %}
+                <a href="{{ row.supervisor.url }}">{{ row.supervisor.label }}</a>
+              {% elif row.supervisor %}
+                {{ row.supervisor.label }}
+              {% else %}
+                <span class="muted">—</span>
+              {% endif %}
+            </td>
+            <td>{{ row.created_at }}</td>
+            <td>{{ row.updated_at }}</td>
+            <td>{{ user_obj.is_active }}</td>
+            <td>{{ user_obj.is_staff }}</td>
+            <td>{{ user_obj.is_superuser }}</td>
+            <td><a href="{{ request.url_for('admin_user_detail_page', user_id=user_obj.id) }}">Open</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No users found.</p>
+  {% endif %}
+{% endblock %}

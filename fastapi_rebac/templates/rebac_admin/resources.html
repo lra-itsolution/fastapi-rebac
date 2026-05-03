@@ -1,0 +1,36 @@
+{% extends "rebac_admin/base.html" %}
+
+{% block title %}Resources{% endblock %}
+
+{% block content %}
+  <h1>Resources</h1>
+
+  {% if resources %}
+    <div class="table-responsive">
+      <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Table key</th>
+          <th>View type</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in resources %}
+          <tr>
+            <td>{{ item.title }}</td>
+            <td><code>{{ item.table_key }}</code></td>
+            <td>{{ item.admin_view }}</td>
+            <td>
+              <a href="{{ request.url_for('admin_resource_list_page', table_key=item.table_key) }}">Open</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No available resources.</p>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "rebac_admin/base.html" %}
+
+{% block title %}Create user{% endblock %}
+
+{% block content %}
+  <h1>Create user</h1>
+
+  <form method="post" class="admin-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <label class="form-row is-required">
+      <span class="field-label">Email <span class="required-marker">required</span></span>
+      <input type="email" name="email" required>
+    </label>
+
+    <label class="form-row is-required">
+      <span class="field-label">Username <span class="required-marker">required</span></span>
+      <input type="text" name="username" required>
+    </label>
+
+    <label class="form-row">
+      <span class="field-label">First name</span>
+      <input type="text" name="first_name">
+    </label>
+
+    <label class="form-row">
+      <span class="field-label">Last name</span>
+      <input type="text" name="last_name">
+    </label>
+
+    <label class="form-row">
+      <span class="field-label">Supervisor</span>
+      <div class="fk-widget" data-fk-widget>
+        <div class="fk-field">
+          <span class="fk-subfield-label">Choose from list</span>
+          <select name="supervisor_id_select" data-fk-select onchange="this.closest('[data-fk-widget]').querySelector('[data-fk-manual]').value = this.value || '';">
+            <option value="">---------</option>
+            {% for supervisor in supervisor_choices %}
+              <option value="{{ supervisor.id }}">{{ supervisor }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fk-field">
+          <span class="fk-subfield-label">Or enter ID manually</span>
+          <input type="text" name="supervisor_id" placeholder="User ID" data-fk-manual>
+        </div>
+        <p class="help-text">Choose from the list, or enter a matching existing object ID.</p>
+      </div>
+    </label>
+
+    <label class="form-row is-required">
+      <span class="field-label">Password <span class="required-marker">required</span></span>
+      <input type="password" name="password" required>
+    </label>
+
+    <label class="form-row checkbox-row">
+      <input type="checkbox" name="is_active" checked>
+      <span>Is active</span>
+    </label>
+
+    <label class="form-row checkbox-row">
+      <input type="checkbox" name="is_verified">
+      <span>Is verified</span>
+    </label>
+
+    <label class="form-row checkbox-row">
+      <input type="checkbox" name="is_staff">
+      <span>Is staff</span>
+    </label>
+
+    {% if actor.is_superuser %}
+      <label class="form-row checkbox-row">
+        <input type="checkbox" name="is_superuser">
+        <span>Is superuser</span>
+      </label>
+    {% endif %}
+
+    <div class="form-actions">
+      <button type="submit">Create</button>
+    </div>
+  </form>
+{% endblock %}

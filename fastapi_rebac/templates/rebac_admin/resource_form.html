@@ -1,0 +1,75 @@
+{% extends "rebac_admin/base.html" %}
+
+{% block title %}
+  {% if mode == "create" %}Create {{ config.title }}{% else %}Edit {{ config.title }}{% endif %}
+{% endblock %}
+
+{% block content %}
+  <h1>
+    {% if mode == "create" %}Create {{ config.title }}{% else %}Edit {{ config.title }}{% endif %}
+  </h1>
+
+  <form method="post" class="admin-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% for field in fields %}
+      <label class="form-row {% if field.required %}is-required{% endif %} {% if field.input_type == 'checkbox' %}checkbox-row{% endif %}">
+        {% if field.input_type == "checkbox" %}
+          <input
+            type="checkbox"
+            name="{{ field.name }}"
+            {% if field.value %}checked{% endif %}
+            {% if field.readonly %}disabled{% endif %}
+          >
+          <span>{{ field.label }}</span>
+        {% else %}
+          <span class="field-label">
+            {{ field.label }}
+            {% if field.required %}<span class="required-marker">required</span>{% endif %}
+          </span>
+          {% if field.input_type == "foreign_key" %}
+            <div class="fk-widget {% if field.required %}is-required{% endif %}" data-fk-widget {% if field.required %}data-required="1"{% endif %}>
+              <div class="fk-field">
+                <span class="fk-subfield-label">Choose from list</span>
+                <select name="{{ field.name }}__select" {% if field.readonly %}disabled{% endif %} data-fk-select onchange="this.closest('[data-fk-widget]').querySelector('[data-fk-manual]').value = this.value || '';">
+                  <option value="">---------</option>
+                  {% for choice in field.choices %}
+                    <option value="{{ choice.value }}" {% if choice.value == field.value|string %}selected{% endif %}>{{ choice.label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="fk-field">
+                <span class="fk-subfield-label">Or enter ID manually</span>
+                <input
+                  type="text"
+                  name="{{ field.name }}"
+                  value="{{ field.value if field.value is not none else '' }}"
+                  placeholder="Object ID"
+                  {% if field.required %}required{% endif %}
+                  {% if field.readonly %}readonly{% endif %}
+                  data-fk-manual
+                >
+              </div>
+              {% if field.display.url %}
+                <a class="related-object-link" href="{{ field.display.url }}">Open selected object</a>
+              {% else %}
+                <p class="help-text">Use the list, or paste the related object ID manually.</p>
+              {% endif %}
+            </div>
+          {% else %}
+            <input
+              type="{{ field.input_type }}"
+              name="{{ field.name }}"
+              value="{{ field.value if field.value is not none else '' }}"
+              {% if field.required %}required{% endif %}
+              {% if field.readonly %}readonly{% endif %}
+            >
+          {% endif %}
+        {% endif %}
+      </label>
+    {% endfor %}
+
+    <div class="form-actions">
+      <button type="submit">{% if mode == "create" %}Create{% else %}Save{% endif %}</button>
+    </div>
+  </form>
+{% endblock %}

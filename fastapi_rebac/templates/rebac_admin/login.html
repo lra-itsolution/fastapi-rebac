@@ -1,0 +1,37 @@
+{% extends "rebac_admin/base.html" %}
+
+{% block title %}Log in | FastAPI ReBAC administration{% endblock %}
+{% block bodyclass %}login{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+  <div class="login-panel">
+    <h1>FastAPI ReBAC administration</h1>
+    <p class="muted">Log in with a staff account to continue.</p>
+
+    {% if error %}
+      <ul class="messagelist">
+        <li class="error">{{ error }}</li>
+      </ul>
+    {% endif %}
+
+    <form method="post" action="{{ request.url_for('admin_login_submit') }}" class="login-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+      <div class="form-row">
+        <label for="id_username">Email <span class="required-marker">required</span></label>
+        <input id="id_username" type="email" name="username" autocomplete="username" required autofocus>
+      </div>
+
+      <div class="form-row">
+        <label for="id_password">Password <span class="required-marker">required</span></label>
+        <input id="id_password" type="password" name="password" autocomplete="current-password" required>
+      </div>
+
+      <div class="submit-row">
+        <input type="submit" value="Log in">
+      </div>
+    </form>
+  </div>
+{% endblock %}

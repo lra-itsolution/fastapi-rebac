@@ -1,0 +1,57 @@
+{% extends "rebac_admin/base.html" %}
+
+{% block title %}Groups{% endblock %}
+
+{% block content %}
+  <h1>Groups</h1>
+
+  <div class="actions">
+    {% if create_allowed %}
+      <a href="{{ request.url_for('admin_group_create_page') }}">Create group</a>
+    {% endif %}
+  </div>
+
+  {% if group_rows %}
+    <div class="table-responsive">
+      <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Created by</th>
+          <th>Created at</th>
+          <th>Updated at</th>
+          <th>Members visibility</th>
+          <th>Creator visibility</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in group_rows %}
+          {% set group = row.obj %}
+          <tr>
+            <td><code>{{ group.id }}</code></td>
+            <td>{{ group.name }}</td>
+            <td>
+              {% if row.created_by.url %}
+                <a href="{{ row.created_by.url }}">{{ row.created_by.label }}</a>
+              {% else %}
+                {{ row.created_by.label }}
+              {% endif %}
+            </td>
+            <td>{{ row.created_at }}</td>
+            <td>{{ row.updated_at }}</td>
+            <td>{{ group.share_members_visibility }}</td>
+            <td>{{ group.share_creator_visibility }}</td>
+            <td>
+              <a href="{{ request.url_for('admin_group_detail_page', group_id=group.id) }}">Open</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No groups found.</p>
+  {% endif %}
+{% endblock %}
