@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..db.base import Base, TimestampMixin, UUIDPKMixin
 from ..enums import Action
-from ..types import AuthTableId, GroupId
+from ..types import AuthTableId, GroupId, UserId
 
 if TYPE_CHECKING:
     from .auth_table import AuthTable
@@ -32,6 +32,11 @@ class GroupPermission(Base, UUIDPKMixin, TimestampMixin):
     action: Mapped[Action] = mapped_column(
         Enum(Action, name="rebac_action_enum", native_enum=False),
         nullable=False,
+    )
+    granted_by_id: Mapped[UserId] = mapped_column(
+        ForeignKey("user.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
     )
     group: Mapped["Group"] = relationship("Group", back_populates="permissions")
     auth_table: Mapped["AuthTable"] = relationship(

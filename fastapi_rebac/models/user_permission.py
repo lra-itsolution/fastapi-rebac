@@ -32,9 +32,9 @@ class UserPermission(Base, UUIDPKMixin, TimestampMixin):
         Enum(Action, name="rebac_action_enum", native_enum=False),
         nullable=False,
     )
-    granted_by_id: Mapped[UserId | None] = mapped_column(
-        ForeignKey("user.id", ondelete="SET NULL"),
-        nullable=True,
+    granted_by_id: Mapped[UserId] = mapped_column(
+        ForeignKey("user.id", ondelete="RESTRICT"),
+        nullable=False,
         index=True,
     )
     auth_table: Mapped["AuthTable"] = relationship(

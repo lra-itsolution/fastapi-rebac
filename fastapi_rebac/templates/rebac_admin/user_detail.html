@@ -88,6 +88,7 @@
               <tr>
                 <th>Membership ID</th>
                 <th>Group</th>
+                <th>Created by</th>
                 {% if can_delete_membership %}<th></th>{% endif %}
               </tr>
             </thead>
@@ -100,6 +101,15 @@
                       <a href="{{ membership.group.url }}">{{ membership.group.label }}</a>
                     {% else %}
                       {{ membership.group.label }}
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if membership.created_by and membership.created_by.url %}
+                      <a href="{{ membership.created_by.url }}">{{ membership.created_by.label }}</a>
+                    {% elif membership.created_by %}
+                      {{ membership.created_by.label }}
+                    {% else %}
+                      <span class="muted">—</span>
                     {% endif %}
                   </td>
                   {% if can_delete_membership %}

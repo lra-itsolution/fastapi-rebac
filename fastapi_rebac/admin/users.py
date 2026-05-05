@@ -4,7 +4,7 @@ from typing import Any, TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import false, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..enums import Action
@@ -17,8 +17,10 @@ from .utils import (
     _log_admin_success,
     _parse_action,
     _user_manager_update_user,
-    _visible_auth_tables_query,
+    _visible_auth_tables_for_user,
     _with_admin_context,
+    _can_admin_update_table,
+    _can_admin_delegate_permission,
 )
 
 if TYPE_CHECKING:
@@ -73,6 +75,55 @@ async def _user_choices(rebac: "FastAPIReBAC[Any]", session: AsyncSession, *, ex
     if exclude_user_id is not None:
         stmt = stmt.where(rebac.user_model.id != exclude_user_id)
     return list((await session.execute(stmt)).scalars().all())
+
+
+async def _can_read_group_table(
+    rebac: "FastAPIReBAC[Any]",
+    session: AsyncSession,
+    actor: Any,
+) -> bool:
+    if getattr(actor, "is_superuser", False):
+        return True
+
+    return await rebac.get_access_manager(session).can(
+        user=actor,
+        action=Action.READ,
+        table_key=str(Group.__tablename__),
+    )
+
+
+async def _visible_group_choices(
+    rebac: "FastAPIReBAC[Any]",
+    session: AsyncSession,
+    actor: Any,
+    *,
+    exclude_group_ids: set[Any] | None = None,
+) -> list[Group]:
+    if getattr(actor, "is_superuser", False):
+        stmt = select(Group)
+    else:
+        if not await _can_read_group_table(rebac, session, actor):
+            return []
+        stmt = await rebac.resolve_accessible_select(
+            Group.created_by_id,
+            user=actor,
+            session=session,
+        )
+    if exclude_group_ids:
+        stmt = stmt.where(Group.id.not_in(exclude_group_ids))
+    stmt = stmt.order_by(Group.name)
+    return list((await session.execute(stmt)).scalars().all())
+
+
+def _filter_auth_tables_for_new_permissions(
+    auth_tables: list[AuthTable],
+    existing_permissions: list[UserPermission],
+) -> list[AuthTable]:
+    existing_actions_by_table: dict[Any, set[Action]] = {}
+    for permission in existing_permissions:
+        existing_actions_by_table.setdefault(permission.table_id, set()).add(permission.action)
+    all_actions = set(Action)
+    return [table for table in auth_tables if existing_actions_by_table.get(table.id, set()) != all_actions]
 
 
 def _selected_or_manual(
@@ -134,6 +185,44 @@ async def _ensure_auth_table_exists(session: AsyncSession, table_pk: Any | None)
         raise HTTPException(status_code=400, detail="Selected table does not exist.")
 
 
+async def _get_visible_group_or_404(
+    rebac: "FastAPIReBAC[Any]",
+    session: AsyncSession,
+    actor: Any,
+    group_pk: Any,
+) -> Group:
+    if getattr(actor, "is_superuser", False):
+        group_obj = await session.get(Group, group_pk)
+    else:
+        group_obj = await rebac.resolve_require_object(
+            Action.READ,
+            Group.created_by_id,
+            group_pk,
+            user=actor,
+            session=session,
+        )
+    if group_obj is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Group is not visible.")
+    return group_obj
+
+
+async def _ensure_can_manage_user_acl(
+    rebac: "FastAPIReBAC[Any]",
+    session: AsyncSession,
+    actor: Any,
+    user_id: str,
+) -> Any:
+    user_obj = await _get_visible_user_or_404(rebac, session, actor, user_id)
+    if not await _can_admin_update_table(
+        rebac, session, actor, str(getattr(rebac.user_model, "__tablename__", "user"))
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="UPDATE permission on the user table is required.",
+        )
+    return user_obj
+
+
 def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
     @router.get("/users", response_class=HTMLResponse, name="admin_users_page")
     async def admin_users_page(
@@ -150,7 +239,7 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
                 session=session,
             )
         users = list((await session.execute(user_stmt)).scalars().all())
-        auth_tables = list((await session.execute(_visible_auth_tables_query(rebac))).scalars().all())
+        auth_tables = await _visible_auth_tables_for_user(rebac, session, actor)
         groups = list((await session.execute(select(Group).order_by(Group.name))).scalars().all())
 
         user_rows = []
@@ -272,22 +361,33 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
     ) -> HTMLResponse:
         user_obj = await _get_visible_user_or_404(rebac, session, actor, user_id)
         user_pk = user_obj.id
-        memberships = list(
-            (
-                await session.execute(
-                    select(GroupMembership).where(GroupMembership.user_id == user_pk)
-                )
-            ).scalars().all()
+        can_read_groups = await _can_read_group_table(rebac, session, actor)
+        visible_groups = await _visible_group_choices(rebac, session, actor) if can_read_groups else []
+        visible_group_ids = {group.id for group in visible_groups}
+        memberships_stmt = select(GroupMembership).where(GroupMembership.user_id == user_pk)
+        if not getattr(actor, "is_superuser", False):
+            if visible_group_ids:
+                memberships_stmt = memberships_stmt.where(GroupMembership.group_id.in_(visible_group_ids))
+            else:
+                memberships_stmt = memberships_stmt.where(false())
+        memberships = list((await session.execute(memberships_stmt)).scalars().all())
+        visible_auth_tables = await _visible_auth_tables_for_user(rebac, session, actor)
+        visible_auth_table_ids = {table.id for table in visible_auth_tables}
+        permissions_stmt = select(UserPermission).where(UserPermission.user_id == user_pk)
+        if not getattr(actor, "is_superuser", False):
+            permissions_stmt = permissions_stmt.where(UserPermission.table_id.in_(visible_auth_table_ids))
+        permissions = list((await session.execute(permissions_stmt)).scalars().all())
+        existing_group_ids = {membership.group_id for membership in memberships}
+        groups = [
+            group
+            for group in visible_groups
+            if group.id not in existing_group_ids
+        ]
+        auth_tables = _filter_auth_tables_for_new_permissions(visible_auth_tables, permissions)
+        can_manage_user_acl = await _can_admin_update_table(
+            rebac, session, actor, str(getattr(rebac.user_model, "__tablename__", "user"))
         )
-        permissions = list(
-            (
-                await session.execute(
-                    select(UserPermission).where(UserPermission.user_id == user_pk)
-                )
-            ).scalars().all()
-        )
-        groups = list((await session.execute(select(Group).order_by(Group.name))).scalars().all())
-        auth_tables = list((await session.execute(_visible_auth_tables_query(rebac))).scalars().all())
+        can_manage_user_groups = can_manage_user_acl and can_read_groups
 
         membership_rows = []
         for membership in memberships:
@@ -297,6 +397,9 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
                     "group": await _display_value_for_model_pk(
                         rebac, session, request, Group, membership.group_id
                     ),
+                    "created_by": await _display_value_for_model_pk(
+                        rebac, session, request, rebac.user_model, membership.created_by_id
+                    ) if membership.created_by_id is not None else None,
                 }
             )
 
@@ -343,12 +446,12 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
                 "actions": list(Action),
                 "can_update_user": actor.is_superuser,
                 "can_delete_user": actor.is_superuser and actor.id != user_obj.id,
-                "can_read_membership": actor.is_superuser,
-                "can_create_membership": actor.is_superuser,
-                "can_delete_membership": actor.is_superuser,
-                "can_read_permission": actor.is_superuser,
-                "can_create_permission": actor.is_superuser,
-                "can_delete_permission": actor.is_superuser,
+                "can_read_membership": can_manage_user_groups,
+                "can_create_membership": can_manage_user_groups,
+                "can_delete_membership": can_manage_user_groups,
+                "can_read_permission": can_manage_user_acl,
+                "can_create_permission": can_manage_user_acl,
+                "can_delete_permission": can_manage_user_acl,
             },
             include_csrf=True,
         )
@@ -357,7 +460,7 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
     async def admin_user_add_group(
         request: Request,
         user_id: str,
-        actor=Depends(rebac.superuser_required),
+        actor=Depends(rebac.staff_required),
         _csrf_protect: None = Depends(rebac.csrf_protect),
         session: AsyncSession = Depends(rebac.session_dependency),
     ) -> RedirectResponse:
@@ -366,10 +469,10 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
         if group_raw is None:
             raise HTTPException(status_code=400, detail="Group is required.")
 
-        user_pk = _coerce_pk_value(rebac.user_model, "id", user_id)
+        user_obj = await _ensure_can_manage_user_acl(rebac, session, actor, user_id)
+        user_pk = user_obj.id
         group_pk = _coerce_pk_value(Group, "id", group_raw)
-        await _ensure_user_exists(rebac, session, user_pk)
-        await _ensure_group_exists(session, group_pk)
+        await _get_visible_group_or_404(rebac, session, actor, group_pk)
         existing = await session.execute(
             select(GroupMembership).where(
                 GroupMembership.user_id == user_pk,
@@ -377,7 +480,7 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
             )
         )
         if existing.scalar_one_or_none() is None:
-            membership = GroupMembership(user_id=user_pk, group_id=group_pk)
+            membership = GroupMembership(user_id=user_pk, group_id=group_pk, created_by_id=actor.id)
             session.add(membership)
             await session.commit()
             await session.refresh(membership)
@@ -389,7 +492,12 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
                 action=Action.CREATE,
                 table_key=str(GroupMembership.__tablename__),
                 object_id=membership.id,
-                meta={"user_id": str(user_pk), "group_id": str(group_pk), "source": "user_detail"},
+                meta={
+                    "user_id": str(user_pk),
+                    "group_id": str(group_pk),
+                    "created_by_id": str(actor.id),
+                    "source": "user_detail",
+                },
             )
 
         return RedirectResponse(
@@ -402,11 +510,12 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
         request: Request,
         user_id: str,
         membership_id: str,
-        actor=Depends(rebac.superuser_required),
+        actor=Depends(rebac.staff_required),
         _csrf_protect: None = Depends(rebac.csrf_protect),
         session: AsyncSession = Depends(rebac.session_dependency),
     ) -> RedirectResponse:
-        user_pk = _coerce_pk_value(rebac.user_model, "id", user_id)
+        user_obj = await _ensure_can_manage_user_acl(rebac, session, actor, user_id)
+        user_pk = user_obj.id
         membership_pk = _coerce_pk_value(GroupMembership, "id", membership_id)
         membership = (
             await session.execute(
@@ -418,6 +527,8 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
         ).scalar_one_or_none()
         if membership is not None:
             group_pk = membership.group_id
+            created_by_pk = membership.created_by_id
+            await _get_visible_group_or_404(rebac, session, actor, group_pk)
             await session.delete(membership)
             await session.commit()
             await _log_admin_success(
@@ -428,7 +539,12 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
                 action=Action.DELETE,
                 table_key=str(GroupMembership.__tablename__),
                 object_id=membership_pk,
-                meta={"user_id": str(user_pk), "group_id": str(group_pk), "source": "user_detail"},
+                meta={
+                    "user_id": str(user_pk),
+                    "group_id": str(group_pk),
+                    "created_by_id": str(created_by_pk),
+                    "source": "user_detail",
+                },
             )
 
         return RedirectResponse(
@@ -441,7 +557,7 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
         request: Request,
         user_id: str,
         action: str = Form(...),
-        actor=Depends(rebac.superuser_required),
+        actor=Depends(rebac.staff_required),
         _csrf_protect: None = Depends(rebac.csrf_protect),
         session: AsyncSession = Depends(rebac.session_dependency),
     ) -> RedirectResponse:
@@ -450,11 +566,16 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
         if table_raw is None:
             raise HTTPException(status_code=400, detail="Table is required.")
 
-        user_pk = _coerce_pk_value(rebac.user_model, "id", user_id)
+        user_obj = await _ensure_can_manage_user_acl(rebac, session, actor, user_id)
+        user_pk = user_obj.id
         table_pk = _coerce_pk_value(AuthTable, "id", table_raw)
-        await _ensure_user_exists(rebac, session, user_pk)
         await _ensure_auth_table_exists(session, table_pk)
         action_enum = _parse_action(action)
+        if not await _can_admin_delegate_permission(rebac, session, actor, table_pk, action_enum):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You may grant only permissions that you have yourself.",
+            )
         existing = await session.execute(
             select(UserPermission).where(
                 UserPermission.user_id == user_pk,
@@ -497,11 +618,12 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
         request: Request,
         user_id: str,
         permission_id: str,
-        actor=Depends(rebac.superuser_required),
+        actor=Depends(rebac.staff_required),
         _csrf_protect: None = Depends(rebac.csrf_protect),
         session: AsyncSession = Depends(rebac.session_dependency),
     ) -> RedirectResponse:
-        user_pk = _coerce_pk_value(rebac.user_model, "id", user_id)
+        user_obj = await _ensure_can_manage_user_acl(rebac, session, actor, user_id)
+        user_pk = user_obj.id
         permission_pk = _coerce_pk_value(UserPermission, "id", permission_id)
         permission = (
             await session.execute(
@@ -513,6 +635,11 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
         ).scalar_one_or_none()
         if permission is not None:
             table_pk = permission.table_id
+            if not await _can_admin_delegate_permission(rebac, session, actor, table_pk, permission.action):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You may revoke only permissions that you have yourself.",
+                )
             permission_action = permission.action.value
             await session.delete(permission)
             await session.commit()

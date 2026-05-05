@@ -100,6 +100,8 @@ class GroupMembershipRead(BaseModel):
     id: UUID
     group_id: UUID
     user_id: UUID
+    created_by_id: UUID
+    created_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -107,6 +109,7 @@ class GroupMembershipRead(BaseModel):
 class GroupMembershipCreate(BaseModel):
     group_id: UUID
     user_id: UUID
+    created_by_id: UUID
 
 
 class AuthTableBase(BaseModel):
@@ -137,7 +140,7 @@ class UserPermissionRead(BaseModel):
     table_id: UUID
     action: Action
 
-    granted_by_id: UUID | None = None
+    granted_by_id: UUID
     created_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -159,6 +162,7 @@ class GroupPermissionRead(BaseModel):
     group_id: UUID
     table_id: UUID
     action: Action
+    granted_by_id: UUID
 
     model_config = ConfigDict(from_attributes=True)
 

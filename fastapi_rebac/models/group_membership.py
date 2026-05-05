@@ -27,7 +27,12 @@ class GroupMembership(Base, UUIDPKMixin, TimestampMixin):
         nullable=False,
         index=True,
     )
+    created_by_id: Mapped[UserId] = mapped_column(
+        ForeignKey("user.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     group: Mapped["Group"] = relationship("Group", back_populates="memberships")
 
     def __str__(self) -> str:
-        return f"{self.user_id} in {self.group_id}"
+        return f"{self.user_id} in {self.group_id} created by {self.created_by_id}"

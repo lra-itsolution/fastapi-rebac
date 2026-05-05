@@ -71,6 +71,7 @@
               <tr>
                 <th>Membership ID</th>
                 <th>User</th>
+                <th>Created by</th>
                 {% if can_delete_membership %}<th></th>{% endif %}
               </tr>
             </thead>
@@ -83,6 +84,15 @@
                       <a href="{{ membership.user.url }}">{{ membership.user.label }}</a>
                     {% else %}
                       {{ membership.user.label }}
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if membership.created_by and membership.created_by.url %}
+                      <a href="{{ membership.created_by.url }}">{{ membership.created_by.label }}</a>
+                    {% elif membership.created_by %}
+                      {{ membership.created_by.label }}
+                    {% else %}
+                      <span class="muted">—</span>
                     {% endif %}
                   </td>
                   {% if can_delete_membership %}
@@ -152,6 +162,7 @@
                 <th>Permission ID</th>
                 <th>Table</th>
                 <th>Action</th>
+                <th>Granted by</th>
                 {% if can_delete_permission %}<th></th>{% endif %}
               </tr>
             </thead>
@@ -167,6 +178,15 @@
                     {% endif %}
                   </td>
                   <td>{{ permission.action.value }}</td>
+                  <td>
+                    {% if permission.granted_by and permission.granted_by.url %}
+                      <a href="{{ permission.granted_by.url }}">{{ permission.granted_by.label }}</a>
+                    {% elif permission.granted_by %}
+                      {{ permission.granted_by.label }}
+                    {% else %}
+                      <span class="muted">—</span>
+                    {% endif %}
+                  </td>
                   {% if can_delete_permission %}
                     <td>
                       <form class="inline" method="post" action="{{ request.url_for('admin_group_remove_permission', group_id=group_obj.id, permission_id=permission.id) }}">

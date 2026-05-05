@@ -27,6 +27,21 @@ audit_status_enum = sa.Enum(
     name="rebac_audit_status_enum",
     native_enum=False,
 )
+suspicious_severity_enum = sa.Enum(
+    "LOW",
+    "MEDIUM",
+    "HIGH",
+    name="rebac_suspicious_severity_enum",
+    native_enum=False,
+)
+suspicious_status_enum = sa.Enum(
+    "NEW",
+    "REVIEWED",
+    "FALSE_POSITIVE",
+    "CONFIRMED",
+    name="rebac_suspicious_status_enum",
+    native_enum=False,
+)
 
 
 def _timestamps() -> list[sa.Column]:
@@ -120,16 +135,45 @@ def upgrade() -> None:
     op.create_index("ix_audit_log_table_key", "audit_log", ["table_key"])
 
     op.create_table(
+        "suspicious_alert",
+        sa.Column("id", uuid_type, nullable=False),
+        sa.Column("actor_id", uuid_type, nullable=True),
+        sa.Column("detector_type", sa.String(length=32), nullable=False),
+        sa.Column("rule_key", sa.String(length=100), nullable=False),
+        sa.Column("severity", suspicious_severity_enum, nullable=False),
+        sa.Column("score", sa.Float(), nullable=True),
+        sa.Column("status", suspicious_status_enum, nullable=False),
+        sa.Column("description", sa.Text(), nullable=False),
+        sa.Column("window_start", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("window_end", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("audit_log_ids", sa.JSON(), nullable=True),
+        sa.Column("payload", sa.JSON(), nullable=True),
+        *_timestamps(),
+        sa.ForeignKeyConstraint(["actor_id"], ["user.id"], ondelete="SET NULL"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_suspicious_alert_actor_id", "suspicious_alert", ["actor_id"])
+    op.create_index("ix_suspicious_alert_detector_type", "suspicious_alert", ["detector_type"])
+    op.create_index("ix_suspicious_alert_rule_key", "suspicious_alert", ["rule_key"])
+    op.create_index("ix_suspicious_alert_severity", "suspicious_alert", ["severity"])
+    op.create_index("ix_suspicious_alert_status", "suspicious_alert", ["status"])
+    op.create_index("ix_suspicious_alert_window_end", "suspicious_alert", ["window_end"])
+    op.create_index("ix_suspicious_alert_window_start", "suspicious_alert", ["window_start"])
+
+    op.create_table(
         "group_membership",
         sa.Column("id", uuid_type, nullable=False),
         sa.Column("group_id", uuid_type, nullable=False),
         sa.Column("user_id", uuid_type, nullable=False),
+        sa.Column("created_by_id", uuid_type, nullable=False),
         *_timestamps(),
+        sa.ForeignKeyConstraint(["created_by_id"], ["user.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["group_id"], ["group.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["user.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("group_id", "user_id", name="uq_group_membership_group_user"),
     )
+    op.create_index("ix_group_membership_created_by_id", "group_membership", ["created_by_id"])
     op.create_index("ix_group_membership_group_id", "group_membership", ["group_id"])
     op.create_index("ix_group_membership_user_id", "group_membership", ["user_id"])
 
@@ -139,9 +183,9 @@ def upgrade() -> None:
         sa.Column("user_id", uuid_type, nullable=False),
         sa.Column("table_id", uuid_type, nullable=False),
         sa.Column("action", action_enum, nullable=False),
-        sa.Column("granted_by_id", uuid_type, nullable=True),
+        sa.Column("granted_by_id", uuid_type, nullable=False),
         *_timestamps(),
-        sa.ForeignKeyConstraint(["granted_by_id"], ["user.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["granted_by_id"], ["user.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["table_id"], ["auth_table.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["user.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -157,12 +201,15 @@ def upgrade() -> None:
         sa.Column("group_id", uuid_type, nullable=False),
         sa.Column("table_id", uuid_type, nullable=False),
         sa.Column("action", action_enum, nullable=False),
+        sa.Column("granted_by_id", uuid_type, nullable=False),
         *_timestamps(),
+        sa.ForeignKeyConstraint(["granted_by_id"], ["user.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["group_id"], ["group.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["table_id"], ["auth_table.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("group_id", "table_id", "action", name="uq_group_permission"),
     )
+    op.create_index("ix_group_permission_granted_by_id", "group_permission", ["granted_by_id"])
     op.create_index("ix_group_permission_group_id", "group_permission", ["group_id"])
     op.create_index("ix_group_permission_table_id", "group_permission", ["table_id"])
 
@@ -170,6 +217,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_group_permission_table_id", table_name="group_permission")
     op.drop_index("ix_group_permission_group_id", table_name="group_permission")
+    op.drop_index("ix_group_permission_granted_by_id", table_name="group_permission")
     op.drop_table("group_permission")
 
     op.drop_index("ix_user_permission_user_id", table_name="user_permission")
@@ -179,7 +227,17 @@ def downgrade() -> None:
 
     op.drop_index("ix_group_membership_user_id", table_name="group_membership")
     op.drop_index("ix_group_membership_group_id", table_name="group_membership")
+    op.drop_index("ix_group_membership_created_by_id", table_name="group_membership")
     op.drop_table("group_membership")
+
+    op.drop_index("ix_suspicious_alert_window_start", table_name="suspicious_alert")
+    op.drop_index("ix_suspicious_alert_window_end", table_name="suspicious_alert")
+    op.drop_index("ix_suspicious_alert_status", table_name="suspicious_alert")
+    op.drop_index("ix_suspicious_alert_severity", table_name="suspicious_alert")
+    op.drop_index("ix_suspicious_alert_rule_key", table_name="suspicious_alert")
+    op.drop_index("ix_suspicious_alert_detector_type", table_name="suspicious_alert")
+    op.drop_index("ix_suspicious_alert_actor_id", table_name="suspicious_alert")
+    op.drop_table("suspicious_alert")
 
     op.drop_index("ix_audit_log_table_key", table_name="audit_log")
     op.drop_index("ix_audit_log_request_id", table_name="audit_log")

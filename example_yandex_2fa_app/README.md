@@ -100,11 +100,10 @@ Windows PowerShell:
 alembic -c example_yandex_2fa_app\alembic.ini upgrade head
 ```
 
-The example app includes application-level migrations for:
+The example app includes exactly two application-level migrations:
 
-- core `fastapi-rebac` tables;
-- optional Yandex 2FA tables;
-- `suspicious_alert` anomaly table.
+1. `20260502_0001_initial.py` — the same base schema as `example_app`, including core `fastapi-rebac` tables, `note`, and `suspicious_alert`;
+2. `20260502_0002_yandex_2fa.py` — optional Yandex 2FA tables.
 
 The library itself does not apply optional Yandex migrations automatically.
 

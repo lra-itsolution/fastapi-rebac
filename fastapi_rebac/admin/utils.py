@@ -560,6 +560,53 @@ async def _assert_table_permission(
     )
 
 
+async def _visible_auth_tables_for_user(
+    rebac: "FastAPIReBAC[Any]",
+    session: AsyncSession,
+    user: Any,
+) -> list[AuthTable]:
+    """Return auth tables visible to an admin user in administration forms."""
+
+    stmt = _visible_auth_tables_query(rebac)
+    if not getattr(user, "is_superuser", False):
+        visible_keys = await _allowed_table_keys(rebac, session, user, Action.READ)
+        if not visible_keys:
+            return []
+        stmt = stmt.where(AuthTable.key.in_(visible_keys))
+    return list((await session.execute(stmt)).scalars().all())
+
+
+async def _can_admin_update_table(
+    rebac: "FastAPIReBAC[Any]",
+    session: AsyncSession,
+    user: Any,
+    table_key: str,
+) -> bool:
+    if getattr(user, "is_superuser", False):
+        return True
+    return table_key in await _allowed_table_keys(rebac, session, user, Action.UPDATE)
+
+
+async def _can_admin_delegate_permission(
+    rebac: "FastAPIReBAC[Any]",
+    session: AsyncSession,
+    user: Any,
+    table_id: Any,
+    action: Action,
+) -> bool:
+    """Users may grant or revoke only permissions they currently have themselves."""
+
+    if getattr(user, "is_superuser", False):
+        return True
+
+    table_obj = await session.get(AuthTable, table_id)
+    if table_obj is None or table_obj.key in rebac.hidden_admin_table_keys:
+        return False
+
+    allowed_keys = await _allowed_table_keys(rebac, session, user, action)
+    return table_obj.key in allowed_keys
+
+
 async def _resource_select(
     rebac: "FastAPIReBAC[Any]",
     session: AsyncSession,
