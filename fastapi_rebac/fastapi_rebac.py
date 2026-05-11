@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from . import schemas
 from .access import BaseAccessController, SQLAlchemyAccessController
 from .admin import build_admin_router
+from .admin.redirects import append_next_param, any_path_matches_prefix, path_from_url, request_path_with_query
 from .csrf import CSRFManager
 from .enums import Action
 from .errors import ConfigurationError
@@ -699,32 +700,66 @@ class FastAPIReBAC(Generic[_UserT]):
         return normalized.rstrip("/") or "/admin"
 
     @staticmethod
-    def _install_admin_redirect_middleware(app: FastAPI, *, prefix: str) -> None:
-        normalized_prefix = FastAPIReBAC._normalize_admin_prefix(prefix)
-        state_key = "_fastapi_rebac_admin_redirect_prefixes"
-        installed_prefixes = getattr(app.state, state_key, set())
-        if normalized_prefix in installed_prefixes:
+    def _install_auth_redirect_middleware(
+        app: FastAPI,
+        *,
+        login_url: str,
+        path_prefixes: Sequence[str] | None = None,
+        exclude_prefixes: Sequence[str] | None = None,
+        require_html_accept: bool = False,
+    ) -> None:
+        normalized_login_url = login_url or "/admin/login"
+        normalized_prefixes = tuple(path_prefixes or tuple())
+        normalized_excludes = tuple(exclude_prefixes or tuple())
+        state_key = "_fastapi_rebac_auth_redirect_configs"
+        config_key = (
+            normalized_login_url,
+            normalized_prefixes,
+            normalized_excludes,
+            require_html_accept,
+        )
+        installed_configs = getattr(app.state, state_key, set())
+        if config_key in installed_configs:
             return
 
-        installed_prefixes = set(installed_prefixes)
-        installed_prefixes.add(normalized_prefix)
-        setattr(app.state, state_key, installed_prefixes)
+        installed_configs = set(installed_configs)
+        installed_configs.add(config_key)
+        setattr(app.state, state_key, installed_configs)
+
+        login_path = path_from_url(normalized_login_url)
 
         @app.middleware("http")
-        async def rebac_admin_auth_redirect(request: Request, call_next):  # type: ignore[no-untyped-def]
+        async def rebac_auth_redirect(request: Request, call_next):  # type: ignore[no-untyped-def]
             response = await call_next(request)
             path = request.url.path.rstrip("/") or "/"
-            login_path = f"{normalized_prefix}/login"
-            is_admin_path = path == normalized_prefix or path.startswith(f"{normalized_prefix}/")
-            is_login_path = path == login_path or path.startswith(f"{login_path}/")
-            if (
-                is_admin_path
-                and not is_login_path
-                and request.method.upper() == "GET"
-                and response.status_code == status.HTTP_401_UNAUTHORIZED
-            ):
-                return RedirectResponse(url=login_path, status_code=status.HTTP_303_SEE_OTHER)
-            return response
+
+            if request.method.upper() != "GET":
+                return response
+            if response.status_code != status.HTTP_401_UNAUTHORIZED:
+                return response
+            if login_path is not None and (path == login_path or path.startswith(f"{login_path}/")):
+                return response
+            if normalized_excludes and any_path_matches_prefix(path, normalized_excludes):
+                return response
+            if normalized_prefixes and not any_path_matches_prefix(path, normalized_prefixes):
+                return response
+            if require_html_accept:
+                accept = request.headers.get("accept", "")
+                if "text/html" not in accept and "*/*" not in accept and accept:
+                    return response
+
+            next_url = request_path_with_query(request)
+            redirect_url = append_next_param(normalized_login_url, next_url)
+            return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
+
+    @staticmethod
+    def _install_admin_redirect_middleware(app: FastAPI, *, prefix: str) -> None:
+        normalized_prefix = FastAPIReBAC._normalize_admin_prefix(prefix)
+        FastAPIReBAC._install_auth_redirect_middleware(
+            app,
+            login_url=f"{normalized_prefix}/login",
+            path_prefixes=(normalized_prefix,),
+        )
 
     def mount_admin(
         self,
@@ -732,11 +767,36 @@ class FastAPIReBAC(Generic[_UserT]):
         *,
         prefix: str = "/admin",
         static_path: str = "/rebac-admin/static",
+        login_url: str | None = None,
+        enable_auth_redirect: bool = True,
+        auth_redirect_prefixes: Sequence[str] | None = None,
+        auth_redirect_exclude_prefixes: Sequence[str] | None = None,
+        auth_redirect_require_html_accept: bool = False,
     ) -> None:
-        """Mount admin static files, login form and admin router."""
+        """Mount admin static files, login form and admin router.
+
+        When ``enable_auth_redirect`` is enabled, GET requests that return
+        ``401 Unauthorized`` are redirected to the login page with a safe
+        relative ``next`` parameter. By default the bundled admin login page is
+        used, and the redirect middleware applies to all paths so the same login
+        form can be reused by regular HTML pages protected with
+        ``rebac.auth_required``. Pass ``auth_redirect_prefixes`` to limit this
+        behavior to selected URL prefixes, or ``login_url`` to redirect to a
+        custom login page.
+        """
         normalized_prefix = self._normalize_admin_prefix(prefix)
+        effective_login_url = login_url or f"{normalized_prefix}/login"
         self.mount_admin_static(app, path=static_path)
-        self._install_admin_redirect_middleware(app, prefix=normalized_prefix)
+        if enable_auth_redirect:
+            excludes = list(auth_redirect_exclude_prefixes or tuple())
+            excludes.append(static_path)
+            self._install_auth_redirect_middleware(
+                app,
+                login_url=effective_login_url,
+                path_prefixes=auth_redirect_prefixes,
+                exclude_prefixes=tuple(excludes),
+                require_html_accept=auth_redirect_require_html_accept,
+            )
         app.include_router(self.get_admin_router(), prefix=normalized_prefix)
 
     def get_context_user(self) -> _UserT | None:

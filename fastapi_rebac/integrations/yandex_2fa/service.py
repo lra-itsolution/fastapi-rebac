@@ -192,6 +192,12 @@ class Yandex2FAService:
         )
         return result.scalar_one_or_none()
 
+    async def get_preauth_redirect_after(self, *, state: str) -> str | None:
+        result = await self.session.execute(
+            select(YandexPreAuthSession.redirect_after).where(YandexPreAuthSession.state == state)
+        )
+        return result.scalar_one_or_none()
+
     async def complete_login(
         self,
         *,

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .redirects import path_matches_prefix, safe_relative_url
 from .utils import _template_response
 
 if TYPE_CHECKING:
@@ -21,16 +22,27 @@ async def _maybe_await(value: Any) -> Any:
     return value
 
 
-def _admin_login_redirect(request: Request) -> RedirectResponse:
+def _admin_login_url(request: Request, *, next_url: str | None = None) -> str:
+    url = str(request.url_for("admin_login_page"))
+    if next_url:
+        url = str(request.url_for("admin_login_page").include_query_params(next=next_url))
+    return url
+
+
+def _admin_login_redirect(request: Request, *, next_url: str | None = None) -> RedirectResponse:
     return RedirectResponse(
-        url=str(request.url_for("admin_login_page")),
+        url=_admin_login_url(request, next_url=next_url),
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
 
+def _admin_index_url(request: Request) -> str:
+    return str(request.url_for("admin_index"))
+
+
 def _admin_index_redirect(request: Request) -> RedirectResponse:
     return RedirectResponse(
-        url=str(request.url_for("admin_index")),
+        url=_admin_index_url(request),
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -52,14 +64,42 @@ def _admin_cookie_backend(rebac: "FastAPIReBAC[Any]") -> "AuthenticationBackend[
     )
 
 
+def _admin_prefix(request: Request) -> str:
+    admin_index_path = request.url_for("admin_index").path.rstrip("/") or "/"
+    return admin_index_path
+
+
+def _is_admin_target(request: Request, target_url: str | None) -> bool:
+    if not target_url:
+        return True
+    safe_target = safe_relative_url(target_url)
+    if safe_target is None:
+        return True
+    target_path = safe_target.split("?", 1)[0]
+    return path_matches_prefix(target_path, _admin_prefix(request))
+
+
+def _resolve_next(request: Request, raw_next: str | None) -> str | None:
+    return safe_relative_url(raw_next)
+
+
+def _login_context(user: Any, error: str | None, next_url: str | None) -> dict[str, Any]:
+    return {"user": user, "error": error, "next_url": next_url}
+
+
 async def _admin_login_response(
     backend: "AuthenticationBackend[Any, Any]",
     user: Any,
     request: Request,
+    *,
+    redirect_url: str | None = None,
 ) -> RedirectResponse:
     strategy = await _maybe_await(backend.get_strategy())
     login_response = await backend.login(strategy, user)
-    redirect = _admin_index_redirect(request)
+    redirect = RedirectResponse(
+        url=redirect_url or _admin_index_url(request),
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
     _copy_set_cookie_headers(login_response, redirect)
     return redirect
 
@@ -110,16 +150,24 @@ def register_login_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None
     @router.get("/login/", response_class=HTMLResponse, response_model=None, include_in_schema=False)
     async def admin_login_page(
         request: Request,
+        next: str | None = None,  # noqa: A002 - query parameter name
         user=Depends(rebac.current_user(optional=True, active=True)),
     ):
-        if user is not None and getattr(user, "is_staff", False):
-            return _admin_index_redirect(request)
+        next_url = _resolve_next(request, next)
+        if user is not None:
+            if next_url and not _is_admin_target(request, next_url):
+                return RedirectResponse(url=next_url, status_code=status.HTTP_303_SEE_OTHER)
+            if getattr(user, "is_staff", False):
+                return RedirectResponse(
+                    url=next_url or _admin_index_url(request),
+                    status_code=status.HTTP_303_SEE_OTHER,
+                )
 
         return _template_response(
             rebac,
             request,
             "rebac_admin/login.html",
-            {"user": user, "error": None},
+            _login_context(user, None, next_url),
             include_csrf=True,
         )
 
@@ -129,10 +177,15 @@ def register_login_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None
         request: Request,
         username: str = Form(...),
         password: str = Form(...),
+        next: str | None = Form(None),  # noqa: A002 - form field name
         _: None = Depends(rebac.csrf_protect),
         manager=Depends(rebac.user_manager_dependency),
         session: AsyncSession = Depends(rebac.session_dependency),
     ):
+        next_url = _resolve_next(request, next)
+        target_url = next_url or _admin_index_url(request)
+        target_is_admin = _is_admin_target(request, target_url)
+
         credentials = _Credentials(username=username, password=password)
         user = await manager.authenticate(credentials)
 
@@ -141,18 +194,20 @@ def register_login_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None
                 rebac,
                 request,
                 "rebac_admin/login.html",
-                {"user": None, "error": "Invalid email or password."},
+                _login_context(None, "Invalid email or password.", next_url),
                 include_csrf=True,
             )
 
-        if not getattr(user, "is_staff", False):
+        if target_is_admin and not getattr(user, "is_staff", False):
             return _template_response(
                 rebac,
                 request,
                 "rebac_admin/login.html",
-                {"user": None, "error": "This account does not have staff access."},
+                _login_context(None, "This account does not have staff access.", next_url),
                 include_csrf=True,
             )
+
+        request.state.rebac_login_redirect_after = target_url
 
         try:
             second_factor_redirect = await _admin_second_factor_redirect_if_required(
@@ -166,7 +221,7 @@ def register_login_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None
                 rebac,
                 request,
                 "rebac_admin/login.html",
-                {"user": None, "error": str(exc.detail)},
+                _login_context(None, str(exc.detail), next_url),
                 include_csrf=True,
             )
 
@@ -174,7 +229,7 @@ def register_login_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None
             return second_factor_redirect
 
         backend = _admin_cookie_backend(rebac)
-        return await _admin_login_response(backend, user, request)
+        return await _admin_login_response(backend, user, request, redirect_url=target_url)
 
     @router.post("/logout", response_model=None, name="admin_logout_submit")
     @router.post("/logout/", response_model=None, include_in_schema=False)
