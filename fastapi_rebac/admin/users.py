@@ -18,7 +18,6 @@ from .utils import (
     _parse_action,
     _user_manager_update_user,
     _visible_auth_tables_for_user,
-    _with_admin_context,
     _can_admin_update_table,
     _can_admin_delegate_permission,
 )
@@ -258,21 +257,19 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
                 }
             )
 
-        return rebac.templates.TemplateResponse(
-            request=request,
-            name="rebac_admin/users.html",
-            context=await _with_admin_context(
-                rebac,
-                session,
-                actor,
-                {
-                    "users": users,
-                    "user_rows": user_rows,
-                    "auth_tables": auth_tables,
-                    "groups": groups,
-                    "create_allowed": actor.is_superuser,
-                },
-            ),
+        return await _admin_template_response(
+            rebac,
+            request,
+            session,
+            actor,
+            "rebac_admin/users.html",
+            {
+                "users": users,
+                "user_rows": user_rows,
+                "auth_tables": auth_tables,
+                "groups": groups,
+                "create_allowed": actor.is_superuser,
+            },
         )
 
     @router.get("/users/create", response_class=HTMLResponse, name="admin_user_create_page")

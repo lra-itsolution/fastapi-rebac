@@ -234,11 +234,13 @@ def _template_response(
     include_csrf: bool = False,
 ) -> HTMLResponse:
     template_context = dict(context or {})
-    csrf_token: str | None = None
 
-    if include_csrf:
-        csrf_token = rebac.csrf.get_or_create_token(request)
-        template_context["csrf_token"] = csrf_token
+    # The base admin layout contains a logout form for every authenticated user,
+    # including active non-staff users that land on the admin login page. Provide
+    # a CSRF token for all admin template responses so the top-bar logout button
+    # is always usable, not only on pages that have their own POST forms.
+    csrf_token = rebac.csrf.get_or_create_token(request)
+    template_context.setdefault("csrf_token", csrf_token)
 
     response = rebac.templates.TemplateResponse(
         request=request,
@@ -246,7 +248,7 @@ def _template_response(
         context=template_context,
     )
 
-    if include_csrf and csrf_token is not None and rebac.csrf.needs_cookie_refresh(request):
+    if rebac.csrf.needs_cookie_refresh(request):
         rebac.csrf.set_cookie(response, csrf_token)
 
     return response

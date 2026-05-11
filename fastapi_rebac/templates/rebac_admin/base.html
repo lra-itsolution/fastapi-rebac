@@ -16,12 +16,10 @@
       <div id="user-tools">
         {% if user is defined and user %}
           <span>{{ user.email }}</span>
-          {% if csrf_token is defined %}
-            <form method="post" action="{{ request.url_for('admin_logout_submit') }}" class="logout-form">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <button type="submit" class="link-button">Log out</button>
-            </form>
-          {% endif %}
+          <form method="post" action="{{ request.url_for('admin_logout_submit') }}" class="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="link-button">Log out</button>
+          </form>
         {% endif %}
       </div>
     </header>

@@ -21,7 +21,6 @@ from .utils import (
     _resource_object,
     _resource_rows_context,
     _resource_select,
-    _with_admin_context,
 )
 
 if TYPE_CHECKING:
@@ -64,18 +63,16 @@ def register_resource_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> N
         allowed_tables = await _allowed_table_keys(rebac, session, user, "READ")
         resources = _available_resource_configs(rebac, user, allowed_tables)
 
-        return rebac.templates.TemplateResponse(
-            request=request,
-            name="rebac_admin/index.html",
-            context=await _with_admin_context(
-                rebac,
-                session,
-                user,
-                {
-                    "resources": resources,
-                    "allowed_tables": sorted(allowed_tables),
-                },
-            ),
+        return await _admin_template_response(
+            rebac,
+            request,
+            session,
+            user,
+            "rebac_admin/index.html",
+            {
+                "resources": resources,
+                "allowed_tables": sorted(allowed_tables),
+            },
         )
 
     @router.get("/resources", response_class=HTMLResponse, name="admin_resources_page")
@@ -87,10 +84,13 @@ def register_resource_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> N
         allowed_tables = await _allowed_table_keys(rebac, session, user, "READ")
         resources = _available_resource_configs(rebac, user, allowed_tables)
 
-        return rebac.templates.TemplateResponse(
-            request=request,
-            name="rebac_admin/resources.html",
-            context=await _with_admin_context(rebac, session, user, {"resources": resources}),
+        return await _admin_template_response(
+            rebac,
+            request,
+            session,
+            user,
+            "rebac_admin/resources.html",
+            {"resources": resources},
         )
 
     @router.get("/resources/{table_key}", response_class=HTMLResponse, name="admin_resource_list_page")

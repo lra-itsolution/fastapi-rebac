@@ -72,8 +72,12 @@ a:focus {
 }
 
 #user-tools {
+  align-items: center;
   color: var(--header-fg);
+  display: flex;
   font-size: 12px;
+  gap: 12px;
+  justify-content: flex-end;
 }
 
 .breadcrumbs {
@@ -468,8 +472,7 @@ code {
 }
 
 .login #nav-sidebar,
-.login .breadcrumbs,
-.login #user-tools {
+.login .breadcrumbs {
   display: none;
 }
 
@@ -491,7 +494,7 @@ code {
 
 .logout-form {
   display: inline;
-  margin-left: 12px;
+  margin: 0;
 }
 
 .link-button {
