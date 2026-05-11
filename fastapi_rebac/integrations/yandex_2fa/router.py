@@ -77,7 +77,9 @@ def get_yandex_2fa_router(
     """Build a router that uses Yandex ID as a second factor.
 
     Include this router instead of the default FastAPI Users login router for the
-    same backend when you need to enforce Yandex 2FA for linked users.
+    same backend when you need to enforce Yandex 2FA after password authentication.
+    If the local user is not linked to Yandex ID yet, the first successful
+    verification links the returned Yandex account automatically.
     """
 
     resolved_backend = rebac._resolve_backend(backend)  # noqa: SLF001 - integration within the same package
@@ -109,17 +111,11 @@ def get_yandex_2fa_router(
             )
 
         service = Yandex2FAService(session, config)
-        if await service.is_enabled(user.id):
-            preauth, redirect_url = await service.create_login_challenge(user.id)
-            return Yandex2FALoginChallenge(
-                redirect_url=redirect_url,
-                expires_in=config.preauth_ttl_seconds,
-            )
-
-        strategy = await _get_strategy(resolved_backend)
-        login_response = await resolved_backend.login(strategy, user)
-        await _call_after_login(user_manager, user, request, login_response)
-        return login_response
+        _preauth, redirect_url = await service.create_login_challenge(user.id)
+        return Yandex2FALoginChallenge(
+            redirect_url=redirect_url,
+            expires_in=config.preauth_ttl_seconds,
+        )
 
     @router.get("/callback", name="yandex_2fa:callback")
     async def callback(

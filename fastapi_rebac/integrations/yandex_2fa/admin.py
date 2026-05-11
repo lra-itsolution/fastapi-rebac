@@ -8,7 +8,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi_users.authentication import AuthenticationBackend
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...admin.redirects import path_matches_prefix, safe_relative_url
 from ...admin.utils import _template_response
 from ...models import ReBACBaseUser
 from ...types import BackendName, UserId
@@ -79,16 +78,9 @@ class Yandex2FAAdminHandler:
         session: AsyncSession,
     ) -> RedirectResponse | None:
         service = Yandex2FAService(session, self.config)
-        if not await service.is_enabled(user.id):
-            return None
-
-        redirect_after = safe_relative_url(
-            getattr(request.state, "rebac_login_redirect_after", None),
-            default=str(request.url_for("admin_index")),
-        )
         _preauth, redirect_url = await service.create_login_challenge(
             user.id,
-            redirect_after=redirect_after,
+            redirect_after=str(request.url_for("admin_index")),
             redirect_uri=self.redirect_uri,
         )
         return RedirectResponse(
@@ -102,26 +94,15 @@ def _error_message(exc: Exception) -> str:
     return message or "Yandex 2FA verification failed. Please try again."
 
 
-def _admin_target_requires_staff(request: Request, redirect_after: str | None) -> bool:
-    safe_target = safe_relative_url(redirect_after)
-    if safe_target is None:
-        return True
-    admin_index_path = request.url_for("admin_index").path.rstrip("/") or "/"
-    target_path = safe_target.split("?", 1)[0]
-    return path_matches_prefix(target_path, admin_index_path)
-
-
 async def _admin_login_response(
     backend: AuthenticationBackend[Any, UserId],
     user: Any,
     request: Request,
-    *,
-    redirect_url: str | None = None,
 ) -> RedirectResponse:
     strategy = await _maybe_await(backend.get_strategy())
     login_response = await backend.login(strategy, user)
     redirect = RedirectResponse(
-        url=redirect_url or str(request.url_for("admin_index")),
+        url=str(request.url_for("admin_index")),
         status_code=status.HTTP_303_SEE_OTHER,
     )
     _copy_set_cookie_headers(login_response, redirect)
@@ -198,10 +179,6 @@ def get_yandex_2fa_admin_router(
 
         service = Yandex2FAService(session, config)
         try:
-            redirect_after = safe_relative_url(
-                await service.get_preauth_redirect_after(state=state),
-                default=str(request.url_for("admin_index")),
-            )
             user_id, _binding = await service.complete_login(
                 code=code,
                 state=state,
@@ -226,12 +203,12 @@ def get_yandex_2fa_admin_router(
                 include_csrf=True,
             )
 
-        if _admin_target_requires_staff(request, redirect_after) and not getattr(user, "is_staff", False):
+        if not getattr(user, "is_staff", False):
             return _template_response(
                 rebac,
                 request,
                 "rebac_admin/login.html",
-                {"user": None, "error": "This account does not have staff access.", "next_url": redirect_after},
+                {"user": None, "error": "This account does not have staff access."},
                 include_csrf=True,
             )
 
@@ -244,6 +221,6 @@ def get_yandex_2fa_admin_router(
                 include_csrf=True,
             )
 
-        return await _admin_login_response(resolved_backend, user, request, redirect_url=redirect_after)
+        return await _admin_login_response(resolved_backend, user, request)
 
     return router

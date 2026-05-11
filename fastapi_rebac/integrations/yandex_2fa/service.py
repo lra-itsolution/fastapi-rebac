@@ -192,12 +192,6 @@ class Yandex2FAService:
         )
         return result.scalar_one_or_none()
 
-    async def get_preauth_redirect_after(self, *, state: str) -> str | None:
-        result = await self.session.execute(
-            select(YandexPreAuthSession.redirect_after).where(YandexPreAuthSession.state == state)
-        )
-        return result.scalar_one_or_none()
-
     async def complete_login(
         self,
         *,
@@ -215,13 +209,26 @@ class Yandex2FAService:
         subject = self.extract_subject(userinfo)
         binding = await self.get_binding(preauth.user_id)
 
-        if binding is None or not binding.is_enabled:
-            await self._consume(preauth)
-            raise Yandex2FAVerificationError("Yandex 2FA is not enabled for this user.")
+        if binding is None:
+            existing_subject = await self.session.execute(
+                select(YandexSecondFactor).where(YandexSecondFactor.provider_subject == subject)
+            )
+            subject_binding = existing_subject.scalar_one_or_none()
+            if subject_binding is not None and subject_binding.user_id != preauth.user_id:
+                await self._consume(preauth)
+                raise Yandex2FAVerificationError("This Yandex account is already linked to another user.")
 
-        if binding.provider_subject != subject:
+            binding = YandexSecondFactor(
+                user_id=preauth.user_id,
+                provider_subject=subject,
+                is_enabled=True,
+            )
+            self.session.add(binding)
+        elif binding.provider_subject != subject:
             await self._consume(preauth)
             raise Yandex2FAVerificationError("Yandex account does not match linked second factor.")
+        else:
+            binding.is_enabled = True
 
         self._update_binding_metadata(binding, userinfo)
         await self._consume(preauth)
