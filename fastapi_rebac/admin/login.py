@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .redirects import path_matches_prefix, safe_relative_url
+from .redirects import append_next_param, path_matches_prefix, safe_relative_url
 from .utils import _template_response
 
 if TYPE_CHECKING:
@@ -23,10 +23,8 @@ async def _maybe_await(value: Any) -> Any:
 
 
 def _admin_login_url(request: Request, *, next_url: str | None = None) -> str:
-    url = str(request.url_for("admin_login_page"))
-    if next_url:
-        url = str(request.url_for("admin_login_page").include_query_params(next=next_url))
-    return url
+    url = str(request.app.url_path_for("admin_login_page"))
+    return append_next_param(url, next_url)
 
 
 def _admin_login_redirect(request: Request, *, next_url: str | None = None) -> RedirectResponse:
@@ -37,7 +35,7 @@ def _admin_login_redirect(request: Request, *, next_url: str | None = None) -> R
 
 
 def _admin_index_url(request: Request) -> str:
-    return str(request.url_for("admin_index"))
+    return str(request.app.url_path_for("admin_index"))
 
 
 def _admin_index_redirect(request: Request) -> RedirectResponse:
@@ -65,7 +63,7 @@ def _admin_cookie_backend(rebac: "FastAPIReBAC[Any]") -> "AuthenticationBackend[
 
 
 def _admin_prefix(request: Request) -> str:
-    admin_index_path = request.url_for("admin_index").path.rstrip("/") or "/"
+    admin_index_path = str(request.app.url_path_for("admin_index")).rstrip("/") or "/"
     return admin_index_path
 
 

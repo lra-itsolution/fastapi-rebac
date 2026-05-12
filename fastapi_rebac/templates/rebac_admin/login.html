@@ -16,7 +16,7 @@
       </ul>
     {% endif %}
 
-    <form method="post" action="{{ request.url_for('admin_login_submit') }}" class="login-form">
+    <form method="post" action="{{ request.app.url_path_for('admin_login_submit') }}" class="login-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
 

@@ -204,7 +204,7 @@ def register_resource_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> N
         )
 
         return RedirectResponse(
-            url=request.url_for(
+            url=request.app.url_path_for(
                 "admin_resource_detail_page",
                 table_key=table_key,
                 object_id=str(object_pk),
@@ -322,7 +322,7 @@ def register_resource_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> N
         )
 
         return RedirectResponse(
-            url=request.url_for(
+            url=request.app.url_path_for(
                 "admin_resource_detail_page",
                 table_key=table_key,
                 object_id=str(object_pk),
@@ -390,6 +390,6 @@ def register_resource_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> N
         )
 
         return RedirectResponse(
-            url=request.url_for("admin_resource_list_page", table_key=table_key),
+            url=request.app.url_path_for("admin_resource_list_page", table_key=table_key),
             status_code=status.HTTP_303_SEE_OTHER,
         )

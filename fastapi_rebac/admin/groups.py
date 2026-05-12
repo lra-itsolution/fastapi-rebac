@@ -253,7 +253,7 @@ def register_group_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None
         )
 
         return RedirectResponse(
-            url=request.url_for("admin_group_detail_page", group_id=str(group_obj.id)),
+            url=request.app.url_path_for("admin_group_detail_page", group_id=str(group_obj.id)),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -401,7 +401,7 @@ def register_group_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None
         )
 
         return RedirectResponse(
-            url=request.url_for("admin_group_detail_page", group_id=group_id),
+            url=request.app.url_path_for("admin_group_detail_page", group_id=group_id),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -447,7 +447,7 @@ def register_group_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None
             meta={"name": group_name},
         )
         return RedirectResponse(
-            url=request.url_for("admin_groups_page"),
+            url=request.app.url_path_for("admin_groups_page"),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -495,7 +495,7 @@ def register_group_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None
                 },
             )
         return RedirectResponse(
-            url=request.url_for("admin_group_detail_page", group_id=group_id),
+            url=request.app.url_path_for("admin_group_detail_page", group_id=group_id),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -541,7 +541,7 @@ def register_group_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None
                 },
             )
         return RedirectResponse(
-            url=request.url_for("admin_group_detail_page", group_id=group_id),
+            url=request.app.url_path_for("admin_group_detail_page", group_id=group_id),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -602,7 +602,7 @@ def register_group_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None
             )
 
         return RedirectResponse(
-            url=request.url_for("admin_group_detail_page", group_id=group_id),
+            url=request.app.url_path_for("admin_group_detail_page", group_id=group_id),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -652,6 +652,6 @@ def register_group_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None
             )
 
         return RedirectResponse(
-            url=request.url_for("admin_group_detail_page", group_id=group_id),
+            url=request.app.url_path_for("admin_group_detail_page", group_id=group_id),
             status_code=status.HTTP_303_SEE_OTHER,
         )

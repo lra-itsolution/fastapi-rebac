@@ -80,7 +80,7 @@ class Yandex2FAAdminHandler:
         service = Yandex2FAService(session, self.config)
         _preauth, redirect_url = await service.create_login_challenge(
             user.id,
-            redirect_after=str(request.url_for("admin_index")),
+            redirect_after=str(request.app.url_path_for("admin_index")),
             redirect_uri=self.redirect_uri,
         )
         return RedirectResponse(
@@ -102,7 +102,7 @@ async def _admin_login_response(
     strategy = await _maybe_await(backend.get_strategy())
     login_response = await backend.login(strategy, user)
     redirect = RedirectResponse(
-        url=str(request.url_for("admin_index")),
+        url=str(request.app.url_path_for("admin_index")),
         status_code=status.HTTP_303_SEE_OTHER,
     )
     _copy_set_cookie_headers(login_response, redirect)

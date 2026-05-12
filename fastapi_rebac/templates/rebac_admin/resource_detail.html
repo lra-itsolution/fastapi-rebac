@@ -7,10 +7,10 @@
 
   <div class="actions">
     {% if update_allowed %}
-      <a href="{{ request.url_for('admin_resource_edit_page', table_key=config.table_key, object_id=instance|attr(config.pk_attr_name)) }}">Edit</a>
+      <a href="{{ request.app.url_path_for('admin_resource_edit_page', table_key=config.table_key, object_id=instance|attr(config.pk_attr_name)) }}">Edit</a>
     {% endif %}
     {% if delete_allowed %}
-      <form class="inline" method="post" action="{{ request.url_for('admin_resource_delete_submit', table_key=config.table_key, object_id=instance|attr(config.pk_attr_name)) }}">
+      <form class="inline" method="post" action="{{ request.app.url_path_for('admin_resource_delete_submit', table_key=config.table_key, object_id=instance|attr(config.pk_attr_name)) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button type="submit" class="danger" data-confirm="Delete this object?">Delete</button>
       </form>

@@ -335,13 +335,13 @@ def _admin_object_url(request: Request, config: AdminModelConfig, object_id: Any
     view = config["admin_view"]
     try:
         if view == "user":
-            return str(request.url_for("admin_user_detail_page", user_id=str(object_id)))
+            return str(request.app.url_path_for("admin_user_detail_page", user_id=str(object_id)))
         if view == "group":
-            return str(request.url_for("admin_group_detail_page", group_id=str(object_id)))
+            return str(request.app.url_path_for("admin_group_detail_page", group_id=str(object_id)))
         if view == "auth_table":
             # Auth tables have a dedicated list page, but the generic object route is still valid.
             return str(
-                request.url_for(
+                request.app.url_path_for(
                     "admin_resource_detail_page",
                     table_key=config["table_key"],
                     object_id=str(object_id),
@@ -349,7 +349,7 @@ def _admin_object_url(request: Request, config: AdminModelConfig, object_id: Any
             )
         if view == "suspicious_alert":
             return str(
-                request.url_for(
+                request.app.url_path_for(
                     "admin_resource_detail_page",
                     table_key=config["table_key"],
                     object_id=str(object_id),
@@ -357,7 +357,7 @@ def _admin_object_url(request: Request, config: AdminModelConfig, object_id: Any
             )
         if view == _RESOURCE_ADMIN_VIEW:
             return str(
-                request.url_for(
+                request.app.url_path_for(
                     "admin_resource_detail_page",
                     table_key=config["table_key"],
                     object_id=str(object_id),

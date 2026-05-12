@@ -345,7 +345,7 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
         )
 
         return RedirectResponse(
-            url=request.url_for("admin_user_detail_page", user_id=str(user_obj.id)),
+            url=request.app.url_path_for("admin_user_detail_page", user_id=str(user_obj.id)),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -498,7 +498,7 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
             )
 
         return RedirectResponse(
-            url=request.url_for("admin_user_detail_page", user_id=user_id),
+            url=request.app.url_path_for("admin_user_detail_page", user_id=user_id),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -545,7 +545,7 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
             )
 
         return RedirectResponse(
-            url=request.url_for("admin_user_detail_page", user_id=user_id),
+            url=request.app.url_path_for("admin_user_detail_page", user_id=user_id),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -606,7 +606,7 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
             )
 
         return RedirectResponse(
-            url=request.url_for("admin_user_detail_page", user_id=user_id),
+            url=request.app.url_path_for("admin_user_detail_page", user_id=user_id),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -656,7 +656,7 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
             )
 
         return RedirectResponse(
-            url=request.url_for("admin_user_detail_page", user_id=user_id),
+            url=request.app.url_path_for("admin_user_detail_page", user_id=user_id),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -745,7 +745,7 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
         )
 
         return RedirectResponse(
-            url=request.url_for("admin_user_detail_page", user_id=user_id),
+            url=request.app.url_path_for("admin_user_detail_page", user_id=user_id),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -810,7 +810,7 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
         )
 
         return RedirectResponse(
-            url=request.url_for("admin_user_detail_page", user_id=user_id),
+            url=request.app.url_path_for("admin_user_detail_page", user_id=user_id),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -869,6 +869,6 @@ def register_user_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") -> None:
         )
 
         return RedirectResponse(
-            url=request.url_for("admin_users_page"),
+            url=request.app.url_path_for("admin_users_page"),
             status_code=status.HTTP_303_SEE_OTHER,
         )

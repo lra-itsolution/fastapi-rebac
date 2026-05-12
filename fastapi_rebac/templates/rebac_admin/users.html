@@ -7,7 +7,7 @@
 
   <div class="actions">
     {% if create_allowed %}
-      <a href="{{ request.url_for('admin_user_create_page') }}">Create user</a>
+      <a href="{{ request.app.url_path_for('admin_user_create_page') }}">Create user</a>
     {% endif %}
   </div>
 
@@ -59,7 +59,7 @@
             <td>{{ user_obj.is_active }}</td>
             <td>{{ user_obj.is_staff }}</td>
             <td>{{ user_obj.is_superuser }}</td>
-            <td><a href="{{ request.url_for('admin_user_detail_page', user_id=user_obj.id) }}">Open</a></td>
+            <td><a href="{{ request.app.url_path_for('admin_user_detail_page', user_id=user_obj.id) }}">Open</a></td>
           </tr>
         {% endfor %}
       </tbody>

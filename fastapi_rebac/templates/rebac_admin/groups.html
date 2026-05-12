@@ -7,7 +7,7 @@
 
   <div class="actions">
     {% if create_allowed %}
-      <a href="{{ request.url_for('admin_group_create_page') }}">Create group</a>
+      <a href="{{ request.app.url_path_for('admin_group_create_page') }}">Create group</a>
     {% endif %}
   </div>
 
@@ -44,7 +44,7 @@
             <td>{{ group.share_members_visibility }}</td>
             <td>{{ group.share_creator_visibility }}</td>
             <td>
-              <a href="{{ request.url_for('admin_group_detail_page', group_id=group.id) }}">Open</a>
+              <a href="{{ request.app.url_path_for('admin_group_detail_page', group_id=group.id) }}">Open</a>
             </td>
           </tr>
         {% endfor %}

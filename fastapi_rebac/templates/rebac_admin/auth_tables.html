@@ -6,7 +6,7 @@
   <h1>Auth Tables</h1>
 
   {% if sync_allowed %}
-    <form method="post" action="{{ request.url_for('admin_auth_tables_sync') }}" class="section">
+    <form method="post" action="{{ request.app.url_path_for('admin_auth_tables_sync') }}" class="section">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <button type="submit">Sync from registered admin models</button>
     </form>

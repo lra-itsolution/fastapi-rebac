@@ -23,7 +23,7 @@
             <td><code>{{ item.table_key }}</code></td>
             <td>{{ item.admin_view }}</td>
             <td>
-              <a href="{{ request.url_for('admin_resource_list_page', table_key=item.table_key) }}">Open</a>
+              <a href="{{ request.app.url_path_for('admin_resource_list_page', table_key=item.table_key) }}">Open</a>
             </td>
           </tr>
         {% endfor %}

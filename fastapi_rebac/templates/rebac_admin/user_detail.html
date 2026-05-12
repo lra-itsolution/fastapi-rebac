@@ -8,11 +8,11 @@
   {% if user_obj %}
     <div class="actions">
       {% if can_update_user %}
-        <a href="{{ request.url_for('admin_user_edit_page', user_id=user_obj.id) }}">Edit</a>
-        <a href="{{ request.url_for('admin_user_password_page', user_id=user_obj.id) }}">Change password</a>
+        <a href="{{ request.app.url_path_for('admin_user_edit_page', user_id=user_obj.id) }}">Edit</a>
+        <a href="{{ request.app.url_path_for('admin_user_password_page', user_id=user_obj.id) }}">Change password</a>
       {% endif %}
       {% if can_delete_user %}
-        <form class="inline" method="post" action="{{ request.url_for('admin_user_delete_submit', user_id=user_obj.id) }}">
+        <form class="inline" method="post" action="{{ request.app.url_path_for('admin_user_delete_submit', user_id=user_obj.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button type="submit" class="danger" data-confirm="Deactivate this user?">Deactivate</button>
         </form>
@@ -57,7 +57,7 @@
         <p class="muted">You do not have permission to view user groups.</p>
       {% else %}
         {% if can_create_membership %}
-          <form method="post" action="{{ request.url_for('admin_user_add_group', user_id=user_obj.id) }}">
+          <form method="post" action="{{ request.app.url_path_for('admin_user_add_group', user_id=user_obj.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <label class="form-row is-required">
               <span class="field-label">Add to group <span class="required-marker">required</span></span>
@@ -114,7 +114,7 @@
                   </td>
                   {% if can_delete_membership %}
                     <td>
-                      <form class="inline" method="post" action="{{ request.url_for('admin_user_remove_group', user_id=user_obj.id, membership_id=membership.id) }}">
+                      <form class="inline" method="post" action="{{ request.app.url_path_for('admin_user_remove_group', user_id=user_obj.id, membership_id=membership.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="danger" data-confirm="Remove this item?">Remove</button>
                       </form>
@@ -137,7 +137,7 @@
         <p class="muted">You do not have permission to view user permissions.</p>
       {% else %}
         {% if can_create_permission %}
-          <form method="post" action="{{ request.url_for('admin_user_add_permission', user_id=user_obj.id) }}">
+          <form method="post" action="{{ request.app.url_path_for('admin_user_add_permission', user_id=user_obj.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <label class="form-row is-required">
               <span class="field-label">Table <span class="required-marker">required</span></span>
@@ -206,7 +206,7 @@
                   </td>
                   {% if can_delete_permission %}
                     <td>
-                      <form class="inline" method="post" action="{{ request.url_for('admin_user_remove_permission', user_id=user_obj.id, permission_id=permission.id) }}">
+                      <form class="inline" method="post" action="{{ request.app.url_path_for('admin_user_remove_permission', user_id=user_obj.id, permission_id=permission.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="danger" data-confirm="Remove this item?">Remove</button>
                       </form>

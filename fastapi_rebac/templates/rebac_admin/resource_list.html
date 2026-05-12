@@ -7,11 +7,11 @@
 
   <div class="actions">
     {% if create_allowed %}
-      <a href="{{ request.url_for('admin_resource_create_page', table_key=config.table_key) }}">Create object</a>
+      <a href="{{ request.app.url_path_for('admin_resource_create_page', table_key=config.table_key) }}">Create object</a>
     {% endif %}
 
     {% if config.table_key == 'suspicious_alert' and user.is_superuser %}
-      <form method="post" action="{{ request.url_for('admin_suspicious_alerts_run') }}" class="inline">
+      <form method="post" action="{{ request.app.url_path_for('admin_suspicious_alerts_run') }}" class="inline">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button type="submit">Run detection</button>
       </form>
@@ -71,7 +71,7 @@
               </td>
             {% endfor %}
             <td>
-              <a href="{{ request.url_for('admin_resource_detail_page', table_key=config.table_key, object_id=row.pk) }}">
+              <a href="{{ request.app.url_path_for('admin_resource_detail_page', table_key=config.table_key, object_id=row.pk) }}">
                 Open
               </a>
             </td>

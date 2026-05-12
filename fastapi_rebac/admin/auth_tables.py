@@ -50,6 +50,6 @@ def register_auth_table_routes(router: APIRouter, rebac: "FastAPIReBAC[Any]") ->
             meta={"operation": "sync", **result},
         )
         return RedirectResponse(
-            url=request.url_for("admin_auth_tables_page"),
+            url=request.app.url_path_for("admin_auth_tables_page"),
             status_code=status.HTTP_303_SEE_OTHER,
         )

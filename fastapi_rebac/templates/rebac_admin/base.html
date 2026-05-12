@@ -4,19 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}FastAPI ReBAC administration{% endblock %}</title>
-  <link rel="stylesheet" href="{{ request.url_for('rebac_admin_static', path='css/rebac_admin.css') }}">
+  <link rel="stylesheet" href="{{ request.app.url_path_for('rebac_admin_static', path='css/rebac_admin.css') }}">
   {% block extrahead %}{% endblock %}
 </head>
 <body class="rebac-admin {% block bodyclass %}{% endblock %}">
   <div id="container">
     <header id="header">
       <div id="branding">
-        <a href="{{ request.url_for('admin_index') }}">FastAPI ReBAC administration</a>
+        <a href="{{ request.app.url_path_for('admin_index') }}">FastAPI ReBAC administration</a>
       </div>
       <div id="user-tools">
         {% if user is defined and user %}
           <span>{{ user.email }}</span>
-          <form method="post" action="{{ request.url_for('admin_logout_submit') }}" class="logout-form">
+          <form method="post" action="{{ request.app.url_path_for('admin_logout_submit') }}" class="logout-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="link-button">Log out</button>
           </form>
@@ -26,7 +26,7 @@
 
     <nav class="breadcrumbs" aria-label="Breadcrumbs">
       {% block breadcrumbs %}
-        <a href="{{ request.url_for('admin_index') }}">Home</a>
+        <a href="{{ request.app.url_path_for('admin_index') }}">Home</a>
       {% endblock %}
     </nav>
 
@@ -35,24 +35,24 @@
         <div class="module">
           <h2>Administration</h2>
           <ul>
-            <li><a href="{{ request.url_for('admin_index') }}">Home</a></li>
+            <li><a href="{{ request.app.url_path_for('admin_index') }}">Home</a></li>
             {% if admin_nav is defined and admin_nav.can_read_resources %}
-              <li><a href="{{ request.url_for('admin_resources_page') }}">Resources</a></li>
+              <li><a href="{{ request.app.url_path_for('admin_resources_page') }}">Resources</a></li>
             {% endif %}
             {% if admin_nav is defined and admin_nav.can_read_users %}
-              <li><a href="{{ request.url_for('admin_users_page') }}">Users</a></li>
+              <li><a href="{{ request.app.url_path_for('admin_users_page') }}">Users</a></li>
             {% endif %}
             {% if admin_nav is defined and admin_nav.can_read_groups %}
-              <li><a href="{{ request.url_for('admin_groups_page') }}">Groups</a></li>
+              <li><a href="{{ request.app.url_path_for('admin_groups_page') }}">Groups</a></li>
             {% endif %}
             {% if admin_nav is defined and admin_nav.can_read_auth_tables %}
-              <li><a href="{{ request.url_for('admin_auth_tables_page') }}">Auth tables</a></li>
+              <li><a href="{{ request.app.url_path_for('admin_auth_tables_page') }}">Auth tables</a></li>
             {% endif %}
             {% if admin_nav is defined and admin_nav.can_read_audit_logs %}
-              <li><a href="{{ request.url_for('admin_resource_list_page', table_key='audit_log') }}">Audit logs</a></li>
+              <li><a href="{{ request.app.url_path_for('admin_resource_list_page', table_key='audit_log') }}">Audit logs</a></li>
             {% endif %}
             {% if admin_nav is defined and admin_nav.can_read_suspicious_alerts %}
-              <li><a href="{{ request.url_for('admin_resource_list_page', table_key='suspicious_alert') }}">Suspicious alerts</a></li>
+              <li><a href="{{ request.app.url_path_for('admin_resource_list_page', table_key='suspicious_alert') }}">Suspicious alerts</a></li>
             {% endif %}
           </ul>
         </div>
@@ -63,7 +63,7 @@
             <ul>
               {% for item in admin_nav.resources %}
                 <li>
-                  <a href="{{ request.url_for('admin_resource_list_page', table_key=item.table_key) }}">
+                  <a href="{{ request.app.url_path_for('admin_resource_list_page', table_key=item.table_key) }}">
                     {{ item.title }}
                   </a>
                 </li>
@@ -79,7 +79,7 @@
     </div>
   </div>
 
-  <script src="{{ request.url_for('rebac_admin_static', path='js/rebac_admin.js') }}" defer></script>
+  <script src="{{ request.app.url_path_for('rebac_admin_static', path='js/rebac_admin.js') }}" defer></script>
   {% block extrajs %}{% endblock %}
 </body>
 </html>
